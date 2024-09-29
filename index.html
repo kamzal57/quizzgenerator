@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Quiz</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #dddddd;
+        }
+
+        #app {
+            width: 80%;
+            max-width: 90%;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 75vh;
+            margin-bottom: 10px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* Style pour le titre en haut de la page */
+        #quizMakerTitle {
+            font-size: 2em; /* Ou ajustez la taille selon vos préférences */
+            text-align: center;
+            margin-bottom: 20px; 
+        }
+
+        /* Style pour le bouton "Exemple de prompt" */
+        #promptButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        /* Style pour la popup */
+        #promptPopup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #dddddd;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow:   
+ 0 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 10; /* Assurez-vous que la popup est au-dessus des autres éléments */
+        }
+    </style>
+</head>
+<body>
+    
+
+<div id="app">
+              <h1 id="quizMakerTitle">QuizMaker (Générateur de fichiers html de QCM)</h1> 
+    
+
+    <textarea id="quizInput" placeholder="Entrez votre quiz ici..."></textarea>
+      <button id="promptButton" onclick="showPrompt()">Exemple de prompt pour générer un QCM</button>
+    <button onclick="generateQuiz()">Générer le Quiz</button>
+</div>
+<div id="promptPopup">
+            <h2>Écrire un quiz en utilisant ce modèle :</h2>
+            <p>Les lignes à créer seront sous cette forme :</p>
+            <pre>
+&&TITRE DU QUIZ&& (le titre entre && et &&)
+&Sous-titre du quiz& (le sous-titre entre & et &)
+                
+***Question 1 : écrire la question 1 ?
+**une bonne réponse
+*une mauvaise réponse
+*une mauvaise réponse
+*une mauvaise réponse
+                
+***Question 2 : écrire la question 2 ?
+**une bonne réponse
+**une bonne réponse
+*une mauvaise réponse
+**une bonne réponse
+
+*** précède la ligne contenant une question.
+* Une seule étoile devant une réponse signifie que la réponse est fausse.
+** Deux étoiles devant une réponse signifient que la réponse est bonne.
+Affiche bonnes et mauvaises réponses aléatoirement afin que la bonne réponse ne soit pas toujours à la même position.
+
+En appliquant ce modèle, générer un questionnaire en selon ces critères :
+- Nombre de questions à générer : (exemple : 10)
+-Nombre de réponses par question : (exemple 4)
+- Autoriser des questions avec plusieurs bonnes réponse : (oui / non) 
+- Thème des questions : voir fichier importé (ou décrire le thème)
+            </pre>
+            <button onclick="closePrompt()">Fermer</button>
+        </div>
+<script>
+
+    function showPrompt() {
+            document.getElementById('promptPopup').style.display = 'block';
+        }
+
+        function closePrompt() {
+            document.getElementById('promptPopup').style.display = 'none';
+        }
+    function generateQuiz() {
+        const input = document.getElementById('quizInput').value;
+        const lines = input.split('\n');
+
+        let quiz = {
+            title: '',
+            subtitle: '',
+            questions: []
+        };
+
+        let currentQuestion = null;
+
+        for (const line of lines) {
+            if (line.startsWith('&&') && line.endsWith('&&')) {
+                quiz.title = line.slice(2, -2);
+            } else if (line.startsWith('&') && line.endsWith('&')) {
+                quiz.subtitle = line.slice(1, -1);
+            } else if (line.startsWith('***')) {
+                if (currentQuestion) {
+                    quiz.questions.push(currentQuestion);
+                }
+                currentQuestion = {
+                    question: line.slice(3).trim(),
+                    answers: [],
+                    correctAnswers: []
+                };
+            } else if (line.startsWith('**')) {
+                currentQuestion.answers.push(line.slice(2).trim());
+                currentQuestion.correctAnswers.push(true);
+            } else if (line.startsWith('*')) {
+                currentQuestion.answers.push(line.slice(1).trim());
+                currentQuestion.correctAnswers.push(false);
+            }
+        }
+
+        if (currentQuestion) {
+            quiz.questions.push(currentQuestion);
+        }
+
+        const quizHtml = generateQuizHtml(quiz);
+        downloadHtmlFile(quizHtml, 'quiz.html');
+    }
+
+    function generateQuizHtml(quiz) {
+        const quizJson = JSON.stringify(quiz).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+        return `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${quiz.title}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        .question { margin-bottom: 20px; padding: 15px; background-color: #e9e9e9; border-radius: 5px; }
+        .hidden { display: none; }
+        #progressBar { width: 100%; background-color: #ddd; margin-bottom: 10px; }
+        #progressBar div { height: 20px; background-color: #4CAF50; width: 0; }
+        .feedback { font-weight: bold; margin-top: 10px; }
+        .correct { color: green; }
+        .incorrect { color: red; }
+        button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; }
+        button:hover { background-color: #45a049; }
+        #nextButton { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div id="quizIntro">
+        <h1 id="quizTitle"></h1>
+        <h2 id="quizSubtitle"></h2>
+        <button onclick="startQuiz()">Commencer le test</button>
+    </div>
+    <div id="quizContent" class="hidden">
+        <div id="progressBar"><div></div></div>
+        <p id="questionCounter"></p>
+        <div id="currentQuestion"></div>
+        <button id="validateButton" onclick="checkAnswer()">Valider ma réponse</button>
+        <button id="nextButton" onclick="nextQuestion()">Question suivante</button>
+        <div id="feedback"></div>
+    </div>
+    <div id="quizResults" class="hidden">
+        <h2>Résultats du quiz</h2>
+        <p id="score"></p>
+        <button onclick="generatePDF()">Générer PDF</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>
+<script>
+    const quiz = ${quizJson};
+    let currentQuestionIndex = 0;
+    let score = 0;
+
+    document.getElementById('quizTitle').textContent = quiz.title;
+    document.getElementById('quizSubtitle').textContent = quiz.subtitle;
+
+    function startQuiz() {
+        document.getElementById('quizIntro').classList.add('hidden');
+        document.getElementById('quizContent').classList.remove('hidden');
+        showQuestion();
+    }
+
+    function showQuestion() {
+        const question = quiz.questions[currentQuestionIndex];
+        let html = '<div class="question"><h3>' + question.question + '</h3>';
+        
+        const inputType = question.correctAnswers.filter(a => a).length > 1 ? 'checkbox' : 'radio';
+        
+        for (let i = 0; i < question.answers.length; i++) {
+            html += '<div><input type="' + inputType + '" name="answer" id="answer' + i + '" value="' + i + '"><label for="answer' + i + '">' + question.answers[i] + '</label></div>';
+        }
+        html += '</div>';
+
+        document.getElementById('currentQuestion').innerHTML = html;
+        document.getElementById('feedback').innerHTML = '';
+        document.getElementById('validateButton').style.display = 'inline-block';
+        document.getElementById('nextButton').style.display = 'none';
+        updateProgress();
+    }
+
+    function updateProgress() {
+        const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
+        document.getElementById('progressBar').firstElementChild.style.width = progress + '%';
+        document.getElementById('questionCounter').textContent = 'Question ' + (currentQuestionIndex + 1) + ' sur ' + quiz.questions.length;
+    }
+
+    function checkAnswer() {
+        const question = quiz.questions[currentQuestionIndex];
+        const selectedAnswers = Array.from(document.querySelectorAll('input[name="answer"]:checked')).map(input => parseInt(input.value));
+        
+        let isCorrect = true;
+        for (let i = 0; i < question.correctAnswers.length; i++) {
+            if (question.correctAnswers[i] !== selectedAnswers.includes(i)) {
+                isCorrect = false;
+                break;
+            }
+        }
+
+        const feedbackElement = document.getElementById('feedback');
+        if (isCorrect) {
+            feedbackElement.innerHTML = '<p class="feedback correct">Bonne réponse !</p>';
+            new Audio('https://www.soundjay.com/buttons/sounds/button-10.mp3').play();
+            score++;
+        } else {
+            feedbackElement.innerHTML = '<p class="feedback incorrect">Mauvaise réponse !</p>';
+            new Audio('https://www.soundjay.com/buttons/sounds/button-11.mp3').play();
+        }
+
+        document.getElementById('validateButton').style.display = 'none';
+        document.getElementById('nextButton').style.display = 'inline-block';
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < quiz.questions.length) {
+            showQuestion();
+        } else {
+            showResults();
+        }
+    }
+
+    function showResults() {
+        document.getElementById('quizContent').classList.add('hidden');
+        document.getElementById('quizResults').classList.remove('hidden');
+        const scorePercentage = (score / quiz.questions.length) * 100;
+        document.getElementById('score').textContent = 'Votre score : ' + score + '/' + quiz.questions.length + ' (' + scorePercentage.toFixed(2) + '%)';
+    }
+
+    function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        const name = prompt("Entrez votre nom :");
+        const firstName = prompt("Entrez votre prénom :");
+        const className = prompt("Entrez votre classe :");
+        
+        if (name && firstName && className) {
+            doc.text('Nom: ' + name, 20, 20);
+            doc.text('Prénom: ' + firstName, 20, 30);
+            doc.text('Classe: ' + className, 20, 40);
+            
+            doc.text('Résultats du quiz "' + quiz.title + '"', 20, 60);
+            doc.text('Score: ' + score + '/' + quiz.questions.length, 20, 70);
+            doc.text('Pourcentage: ' + ((score / quiz.questions.length) * 100).toFixed(2) + '%', 20, 80);
+        
+            doc.save("resultats_quiz.pdf");
+        }
+    }
+<\/script>
+</body>
+</html>`;
+    }
+
+    function downloadHtmlFile(htmlContent, fileName) {
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+</body>
+</html>
